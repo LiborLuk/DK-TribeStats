@@ -6,10 +6,7 @@
         PLAYERS: [
             // Sem dopln hráče kmene, např.:
             // 'Miroo',
-            'Klouzek.senior',
-            'masarik000000',
-            'B0raxis7'
-            
+      'LordShadow', 'Miroo', 'jrrt', 'filip456', 'Aifelou', 'James*', 'petos333', 'Rafanec', 'pantau12', 'Gil-Galad', 'ProCreative', 'bobo128', 'Lord pitr', 'Lišák Ervín', 'fab-1', 'Warden1021', 'Fretka46', 'Adulina1', 'Cl1cK', 'matthew93', '***Tzar***', 'Targaryen Rex', 'Kulivočko', 'R3ctor', 'Master Of Peas', 'Killerbeer12', 'Hlavca15', 'Lacike241', 'kráTargaryen', 'danda98', 'Mistr El', 'perth', 'Bruky', 'Kuna45', 'diko**', 'yoloking', '8jirka8', 'hanz1', 'sejky', 'Azraell', 'tomekx74', 'Romaldu16', 'taavi', 'belanu', 'Tequily', 'Barbuska', 'BigHelmut', 'kuku19', 'zmizik', 'tafik1998', 'Sních', 'Pedro de la Vedro', 'Lord Touched', 'Tomas323', 'pity'
         ],
 
         STATS: [
