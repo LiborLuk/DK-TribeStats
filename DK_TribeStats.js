@@ -1,22 +1,22 @@
 (() => {
     'use strict';
 
-    // Konfigurace je záměrně nahoře; běžně se mění pouze PLAYERS.
+    // Volitelný výchozí seznam. Hráče lze zadat také přímo v okně skriptu.
     const CONFIG = {
         PLAYERS: [
-            // Sem dopln hráče kmene, např.:
+            // Výchozí hráči, např.:
             // 'Miroo',
-      'LordShadow', 'Miroo', 'jrrt', 'filip456', 'Aifelou', 'James*', 'petos333', 'Rafanec', 'pantau12', 'Gil-Galad', 'ProCreative', 'bobo128', 'Lord pitr', 'Lišák Ervín', 'fab-1', 'Warden1021', 'Fretka46', 'Adulina1', 'Cl1cK', 'matthew93', '***Tzar***', 'Targaryen Rex', 'Kulivočko', 'R3ctor', 'Master Of Peas', 'Killerbeer12', 'Hlavca15', 'Lacike241', 'kráTargaryen', 'danda98', 'Mistr El', 'perth', 'Bruky', 'Kuna45', 'diko**', 'yoloking', '8jirka8', 'hanz1', 'sejky', 'Azraell', 'tomekx74', 'Romaldu16', 'taavi', 'belanu', 'Tequily', 'Barbuska', 'BigHelmut', 'kuku19', 'zmizik', 'tafik1998', 'Sních', 'Pedro de la Vedro', 'Lord Touched', 'Tomas323', 'pity'
         ],
 
         STATS: [
             { type: 'scavenge', label: 'Sběr surovin' },
-            { type: 'loot_res', label: 'Kořist - suroviny' },
-            { type: 'loot_vil', label: 'Korist - vesnice' },
+            { type: 'loot_res', label: 'Vyrabované suroviny' },
+            { type: 'loot_vil', label: 'Vyrabované vesnice' },
             { type: 'kill_att', label: 'Poražení útočníci' },
             { type: 'kill_def', label: 'Poražení obránci' },
         ],
 
+        MAX_PLAYERS: 60,
         CONCURRENCY_LIMIT: 8,
         REQUEST_TIMEOUT_MS: 20000,
         DEBUG: false,
@@ -99,6 +99,25 @@
         getDefaultStat() {
             return UTIL.getCurrentStatFromUrl() || CONFIG.STATS[0].type;
         },
+
+        getUniquePlayers(value) {
+            const seen = new Set();
+
+            return String(value || '')
+                .split(/[\s,;]+/)
+                .map((player) => UTIL.normalizeText(player))
+                .filter(Boolean)
+                .filter((player) => {
+                    const key = UTIL.normalizeForCompare(player);
+
+                    if (seen.has(key)) {
+                        return false;
+                    }
+
+                    seen.add(key);
+                    return true;
+                });
+        },
     };
 
     // Vlastní modal a vykreslování výsledků.
@@ -107,6 +126,7 @@
             root: 'dk-tribe-stats-root',
             style: 'dk-tribe-stats-style',
             statSelect: 'dk-tribe-stats-select',
+            playerInput: 'dk-tribe-stats-players',
             loadButton: 'dk-tribe-stats-load',
             closeButton: 'dk-tribe-stats-close',
             tableBody: 'dk-tribe-stats-body',
@@ -196,6 +216,10 @@
                     margin-bottom: 12px;
                 }
 
+                #${UI.ids.root} .dkts-player-field {
+                    margin-bottom: 10px;
+                }
+
                 #${UI.ids.root} .dkts-field {
                     display: flex;
                     flex-direction: column;
@@ -207,18 +231,30 @@
                 }
 
                 #${UI.ids.root} select,
+                #${UI.ids.root} textarea,
                 #${UI.ids.root} button {
                     min-height: 28px;
                     box-sizing: border-box;
                     font: 12px Verdana, Arial, sans-serif;
                 }
 
-                #${UI.ids.root} select {
-                    min-width: 220px;
+                #${UI.ids.root} select,
+                #${UI.ids.root} textarea {
                     border: 1px solid #7d510f;
                     background: #fff7df;
                     color: #2b1d0f;
                     padding: 4px 8px;
+                }
+
+                #${UI.ids.root} select {
+                    min-width: 220px;
+                }
+
+                #${UI.ids.root} textarea {
+                    width: 100%;
+                    min-height: 76px;
+                    resize: vertical;
+                    line-height: 1.45;
                 }
 
                 #${UI.ids.root} .dkts-load {
@@ -311,6 +347,7 @@
 
         createModal() {
             const currentStat = UTIL.getDefaultStat();
+            const defaultPlayers = CONFIG.PLAYERS.join('\n');
             const options = CONFIG.STATS.map((stat) => (
                 `<option value="${UTIL.escapeHtml(stat.type)}"${stat.type === currentStat ? ' selected' : ''}>${UTIL.escapeHtml(stat.label)}</option>`
             )).join('');
@@ -325,6 +362,10 @@
                             <button type="button" id="${UI.ids.closeButton}" class="dkts-close" title="Zavřít" aria-label="Zavřít">&times;</button>
                         </div>
                         <div class="dkts-content">
+                            <label class="dkts-field dkts-player-field" for="${UI.ids.playerInput}">
+                                <span class="dkts-label">Hráči (max. ${CONFIG.MAX_PLAYERS})</span>
+                                <textarea id="${UI.ids.playerInput}" placeholder="Miroo Hráč2 Hráč3" spellcheck="false">${UTIL.escapeHtml(defaultPlayers)}</textarea>
+                            </label>
                             <div class="dkts-controls">
                                 <label class="dkts-field" for="${UI.ids.statSelect}">
                                     <span class="dkts-label">Statistika</span>
@@ -373,6 +414,7 @@
             STATE.isLoading = isLoading;
             $(`#${UI.ids.loadButton}`).prop('disabled', isLoading).text(isLoading ? 'Načítám...' : 'Načíst');
             $(`#${UI.ids.statSelect}`).prop('disabled', isLoading);
+            $(`#${UI.ids.playerInput}`).prop('disabled', isLoading);
         },
 
         setStatus(text) {
@@ -409,7 +451,7 @@
                     ? 'chyba komunikace'
                     : result.status === 'loading'
                         ? 'načítám...'
-                        : 'bez výsledku';
+                        : 'nikdy nedělal';
             const date = result.status === 'ok' ? result.date : CONFIG.TEXT.dash;
 
             return `
@@ -592,7 +634,7 @@
                 return;
             }
 
-            const players = MAIN.getConfiguredPlayers();
+            const players = MAIN.getInputPlayers();
             STATE.selectedStat = $(`#${UI.ids.statSelect}`).val() || UTIL.getDefaultStat();
             STATE.loadedCount = 0;
             STATE.totalCount = players.length;
@@ -602,7 +644,13 @@
 
             if (!players.length) {
                 UI.renderRows([]);
-                UI.setStatus('V CONFIG.PLAYERS nejsou žádní hráči.');
+                UI.setStatus('Zadej alespoň jedno jméno hráče.');
+                return;
+            }
+
+            if (players.length > CONFIG.MAX_PLAYERS) {
+                UI.renderRows([]);
+                UI.setStatus(`Lze načíst nejvýše ${CONFIG.MAX_PLAYERS} hráčů. Zadáno: ${players.length}.`);
                 return;
             }
 
@@ -671,22 +719,8 @@
             });
         },
 
-        getConfiguredPlayers() {
-            const seen = new Set();
-
-            return CONFIG.PLAYERS
-                .map((player) => UTIL.normalizeText(player))
-                .filter(Boolean)
-                .filter((player) => {
-                    const key = UTIL.normalizeForCompare(player);
-
-                    if (seen.has(key)) {
-                        return false;
-                    }
-
-                    seen.add(key);
-                    return true;
-                });
+        getInputPlayers() {
+            return UTIL.getUniquePlayers($(`#${UI.ids.playerInput}`).val());
         },
     };
 
