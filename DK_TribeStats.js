@@ -17,8 +17,11 @@
         ],
 
         MAX_PLAYERS: 60,
-        CONCURRENCY_LIMIT: 8,
+        CONCURRENCY_LIMIT: 5,
+        REQUEST_START_INTERVAL_MS: 350,
         REQUEST_TIMEOUT_MS: 20000,
+        REQUEST_MAX_ATTEMPTS: 3,
+        RETRY_BASE_DELAY_MS: 900,
         DEBUG: false,
 
         SELECTORS: {
@@ -98,6 +101,10 @@
 
         getDefaultStat() {
             return UTIL.getCurrentStatFromUrl() || CONFIG.STATS[0].type;
+        },
+
+        delay(milliseconds) {
+            return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
         },
 
         getUniquePlayers(value) {
@@ -471,6 +478,9 @@
 
     // Sestavení URL a GET požadavky na aktuálním světě.
     const NETWORK = {
+        nextRequestAt: 0,
+        requestStartQueue: Promise.resolve(),
+
         buildRankingUrl(type, playerName) {
             const url = new URL(window.location.href);
             url.searchParams.set('screen', 'ranking');
@@ -480,11 +490,28 @@
             return url.toString();
         },
 
-        fetchPlayerPage(type, playerName) {
+        waitForRequestSlot() {
+            const slot = NETWORK.requestStartQueue.then(async () => {
+                const waitTime = Math.max(0, NETWORK.nextRequestAt - Date.now());
+
+                if (waitTime > 0) {
+                    await UTIL.delay(waitTime);
+                }
+
+                NETWORK.nextRequestAt = Date.now() + CONFIG.REQUEST_START_INTERVAL_MS;
+            });
+
+            NETWORK.requestStartQueue = slot.catch(() => {});
+            return slot;
+        },
+
+        async fetchPlayerPage(type, playerName) {
+            await NETWORK.waitForRequestSlot();
+
             const url = NETWORK.buildRankingUrl(type, playerName);
             DEBUG.log('GET', url);
 
-            return $.ajax({
+            return await $.ajax({
                 url,
                 method: 'GET',
                 dataType: 'html',
@@ -687,15 +714,36 @@
 
         async loadSinglePlayer(type, player, runId) {
             try {
-                const html = await NETWORK.fetchPlayerPage(type, player);
-                const result = PARSER.parsePlayerResult(html, player);
+                const result = await MAIN.fetchAndParseWithRetry(type, player);
                 MAIN.afterPlayerLoaded(runId);
                 return result;
             } catch (error) {
-                DEBUG.log('Communication error', player, error);
+                DEBUG.log('Communication error after all attempts', player, error);
                 MAIN.afterPlayerLoaded(runId);
                 return PARSER.communicationError(player);
             }
+        },
+
+        async fetchAndParseWithRetry(type, player) {
+            let lastError = null;
+
+            for (let attempt = 1; attempt <= CONFIG.REQUEST_MAX_ATTEMPTS; attempt += 1) {
+                try {
+                    const html = await NETWORK.fetchPlayerPage(type, player);
+                    return PARSER.parsePlayerResult(html, player);
+                } catch (error) {
+                    lastError = error;
+                    DEBUG.log(`Attempt ${attempt} failed`, player, error);
+
+                    if (attempt < CONFIG.REQUEST_MAX_ATTEMPTS) {
+                        const backoff = CONFIG.RETRY_BASE_DELAY_MS * (2 ** (attempt - 1));
+                        const jitter = Math.floor(Math.random() * 250);
+                        await UTIL.delay(backoff + jitter);
+                    }
+                }
+            }
+
+            throw lastError || new Error('Player request failed.');
         },
 
         afterPlayerLoaded(runId) {
