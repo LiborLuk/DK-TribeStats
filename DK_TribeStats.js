@@ -16,7 +16,7 @@
             { type: 'kill_def', label: 'Poražení obránci' },
         ],
 
-        MAX_PLAYERS: 60,
+        MAX_PLAYERS: 70,
         CONCURRENCY_LIMIT: 5,
         REQUEST_START_INTERVAL_MS: 350,
         REQUEST_TIMEOUT_MS: 20000,
@@ -111,7 +111,7 @@
             const seen = new Set();
 
             return String(value || '')
-                .split(/[\s,;]+/)
+                .split(/[,;\r\n]+/)
                 .map((player) => UTIL.normalizeText(player))
                 .filter(Boolean)
                 .filter((player) => {
@@ -371,7 +371,7 @@
                         <div class="dkts-content">
                             <label class="dkts-field dkts-player-field" for="${UI.ids.playerInput}">
                                 <span class="dkts-label">Hráči (max. ${CONFIG.MAX_PLAYERS})</span>
-                                <textarea id="${UI.ids.playerInput}" placeholder="Miroo Hráč2 Hráč3" spellcheck="false">${UTIL.escapeHtml(defaultPlayers)}</textarea>
+                                <textarea id="${UI.ids.playerInput}" placeholder="Miroo, Hráč se jménem, Hráč3" spellcheck="false">${UTIL.escapeHtml(defaultPlayers)}</textarea>
                             </label>
                             <div class="dkts-controls">
                                 <label class="dkts-field" for="${UI.ids.statSelect}">
