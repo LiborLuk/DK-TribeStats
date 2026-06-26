@@ -6,6 +6,10 @@
         PLAYERS: [
             // Sem dopln hráče kmene, např.:
             // 'Miroo',
+            'Klouzek.senior',
+            'masarik000000',
+            'B0raxis7'
+            
         ],
 
         STATS: [
